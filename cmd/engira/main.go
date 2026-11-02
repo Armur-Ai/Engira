@@ -20,18 +20,35 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: engira enrich < inventory.json   |   engira version")
+		fmt.Fprintln(os.Stderr, "usage: engira enrich < inventory.json   |   engira score <cvss-vector>   |   engira version")
 		os.Exit(2)
 	}
 	switch os.Args[1] {
 	case "enrich":
 		runEnrich()
+	case "score":
+		runScore(os.Args[2:])
 	case "version":
 		fmt.Printf("engira (scaffold) — contracts %s\n", contracts.SchemaVersion)
 	default:
 		fmt.Fprintln(os.Stderr, "unknown command")
 		os.Exit(2)
 	}
+}
+
+func runScore(args []string) {
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "usage: engira score 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H'")
+		os.Exit(2)
+	}
+	s, err := intel.CVSSv31BaseScore(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "score: %v\n", err)
+		os.Exit(1)
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(s)
 }
 
 func runEnrich() {
