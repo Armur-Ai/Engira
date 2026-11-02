@@ -14,8 +14,8 @@ import (
 	"io"
 	"os"
 
-	contracts "github.com/Armur-Ai/armur-contracts"
 	"github.com/Armur-Ai/Engira/pkg/intel"
+	contracts "github.com/Armur-Ai/armur-contracts"
 )
 
 func main() {
