@@ -2,14 +2,16 @@
 // contracts.DependencyInventory (JSON on stdin) and emits a
 // contracts.IntelligenceResult envelope.
 //
-// Status: scaffold. The offline stub matcher resolves no advisories yet (the
-// pinned dataset + CVSS calculator land in phase P3); the plumbing + envelope
-// are real.
+// enrich matches a dependency inventory against the bundled example advisory set
+// and emits an IntelligenceResult envelope (or, with --report, a Markdown
+// report). The matching logic + CVSS calculator are real; the bundled advisory
+// data is a small illustrative set (a complete, current feed is commercial).
 package main
 
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -25,7 +27,7 @@ func main() {
 	}
 	switch os.Args[1] {
 	case "enrich":
-		runEnrich()
+		runEnrich(os.Args[2:])
 	case "score":
 		runScore(os.Args[2:])
 	case "version":
@@ -51,7 +53,11 @@ func runScore(args []string) {
 	_ = enc.Encode(s)
 }
 
-func runEnrich() {
+func runEnrich(args []string) {
+	fs := flag.NewFlagSet("enrich", flag.ExitOnError)
+	report := fs.Bool("report", false, "render a Markdown report instead of the JSON envelope")
+	_ = fs.Parse(args)
+
 	raw, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "read stdin: %v\n", err)
@@ -64,11 +70,17 @@ func runEnrich() {
 			os.Exit(1)
 		}
 	}
-	e := intel.New(intel.OfflineStubMatcher{})
+	// Use the real advisory matcher over the bundled example set.
+	e := intel.New(intel.NewListMatcher("example-advisories", intel.ExampleAdvisories()))
 	res, err := e.Enrich(context.Background(), inv)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "enrich: %v\n", err)
 		os.Exit(1)
+	}
+
+	if *report {
+		fmt.Print(intel.RenderMarkdown(res))
+		return
 	}
 	env, err := contracts.NewEnvelope(
 		contracts.NSEngira,

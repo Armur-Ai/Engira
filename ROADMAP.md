@@ -10,12 +10,12 @@
 - ☐ LICENSE, CI (build + `go test ./...`), versioned output schemas.
 
 ## Phase 1 — Intelligence & scoring
-- ☐ Versioned advisory store + applicability matching (component/version → advisory).
+- ☑ Advisory ListMatcher + applicability (semver) over a pinned set; versioned store pending.
 - ☐ Scoring service (CVSS vector→score) + CWE/OWASP/ATT&CK mapping, each versioned and reproducible.
 - ☐ Dependency-interpretation endpoint (so Trishul can request advisory applicability through the same implementation).
 
 ## Phase 2 — Reporting
-- ☐ Report renderers: executive, technical, compliance, SARIF — from immutable snapshots.
+- ◐ Markdown report renderer shipped (pkg/intel RenderMarkdown); exec/SARIF renderers pending.
 - ☐ Provenance + "chain and its limits" framing (no overclaiming repair/exploit).
 - ☐ Deterministic rendering with golden-file tests.
 
