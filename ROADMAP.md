@@ -11,7 +11,7 @@
 
 ## Phase 1 — Intelligence & scoring
 - ☑ Advisory ListMatcher + applicability (semver) over a pinned set; versioned store pending.
-- ☐ Scoring service (CVSS vector→score) + CWE/OWASP/ATT&CK mapping, each versioned and reproducible.
+- ◐ CVSS v3.1 base-score calculator + CWE StandardMapping emission from source claims (OWASP/ATT&CK pending).
 - ☐ Dependency-interpretation endpoint (so Trishul can request advisory applicability through the same implementation).
 
 ## Phase 2 — Reporting
