@@ -15,7 +15,7 @@
 - ☐ Dependency-interpretation endpoint (so Trishul can request advisory applicability through the same implementation).
 
 ## Phase 2 — Reporting
-- ◐ Markdown report renderer shipped (pkg/intel RenderMarkdown); exec/SARIF renderers pending.
+- ◐ Markdown report + SARIF-2.1.0-subset renderers shipped; exec/full-SARIF pending.
 - ☐ Provenance + "chain and its limits" framing (no overclaiming repair/exploit).
 - ☐ Deterministic rendering with golden-file tests.
 
