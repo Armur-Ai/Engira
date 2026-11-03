@@ -13,11 +13,11 @@ import (
 // unit; the matching logic here is real, the bundled data set is a small example
 // (a continuously-updated, verified feed is the commercial tier).
 type Advisory struct {
-	ID        string // e.g. CVE / GHSA id
-	Ecosystem string // e.g. "npm", "go", "pypi"
-	Package   string
-	FixedIn   string // first non-vulnerable version (semver); "" = all versions affected
-	CVSS      string // optional vector
+	ID        string `json:"id"`        // e.g. CVE / GHSA id
+	Ecosystem string `json:"ecosystem"` // e.g. "npm", "go", "pypi"
+	Package   string `json:"package"`
+	FixedIn   string `json:"fixed_in"`       // first non-vulnerable version (semver); "" = all versions affected
+	CVSS      string `json:"cvss,omitempty"` // optional vector
 }
 
 // ListMatcher matches a dependency inventory against a pinned advisory list.

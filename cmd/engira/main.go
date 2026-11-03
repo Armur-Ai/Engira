@@ -56,6 +56,7 @@ func runScore(args []string) {
 func runEnrich(args []string) {
 	fs := flag.NewFlagSet("enrich", flag.ExitOnError)
 	report := fs.Bool("report", false, "render a Markdown report instead of the JSON envelope")
+	advFile := fs.String("advisories", "", "path to a versioned advisory JSON file (default: bundled example set)")
 	_ = fs.Parse(args)
 
 	raw, err := io.ReadAll(os.Stdin)
@@ -70,8 +71,17 @@ func runEnrich(args []string) {
 			os.Exit(1)
 		}
 	}
-	// Use the real advisory matcher over the bundled example set.
-	e := intel.New(intel.NewListMatcher("example-advisories", intel.ExampleAdvisories()))
+	// Advisory source: a versioned file if given, else the bundled example set.
+	snapshot, advisories := "example-advisories", intel.ExampleAdvisories()
+	if *advFile != "" {
+		snap, advs, err := intel.LoadAdvisories(*advFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "advisories: %v\n", err)
+			os.Exit(1)
+		}
+		snapshot, advisories = snap, advs
+	}
+	e := intel.New(intel.NewListMatcher(snapshot, advisories))
 	res, err := e.Enrich(context.Background(), inv)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "enrich: %v\n", err)
