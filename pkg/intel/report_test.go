@@ -34,3 +34,21 @@ func TestRenderMarkdownEmpty(t *testing.T) {
 		t.Fatalf("empty report wording missing: %q", md)
 	}
 }
+
+func TestRenderMarkdown_KEVSurfacedAndOrderedFirst(t *testing.T) {
+	res := contracts.IntelligenceResult{
+		ResultID: "r2",
+		Advisories: []contracts.AdvisoryRef{
+			{AdvisoryID: "LOW-1", Component: "a@1", Applicability: "affected", Source: "s"},
+			{AdvisoryID: "KEV-1", Component: "b@1", Applicability: "affected", Rationale: kevRationale, Source: "s"},
+		},
+	}
+	md := RenderMarkdown(res)
+	if !strings.Contains(md, "actively exploited") {
+		t.Errorf("summary should flag actively-exploited advisories:\n%s", md)
+	}
+	// KEV-1 must be rendered before LOW-1 (urgency ordering).
+	if strings.Index(md, "KEV-1") > strings.Index(md, "LOW-1") {
+		t.Errorf("known-exploited advisory should sort first:\n%s", md)
+	}
+}

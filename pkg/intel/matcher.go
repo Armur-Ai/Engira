@@ -18,6 +18,21 @@ type Advisory struct {
 	Package   string `json:"package"`
 	FixedIn   string `json:"fixed_in"`       // first non-vulnerable version (semver); "" = all versions affected
 	CVSS      string `json:"cvss,omitempty"` // optional vector
+	// KnownExploited marks an advisory that is being actively exploited in the
+	// wild (a CISA-KEV-style signal). It is the strongest "patch this now"
+	// priority signal — stronger than CVSS alone.
+	KnownExploited bool `json:"known_exploited,omitempty"`
+}
+
+// kevRationale is the marker Engira writes into an AdvisoryRef.Rationale for a
+// known-exploited, applicable advisory. Consumers detect KEV via
+// IsKnownExploited rather than re-deriving it.
+const kevRationale = "actively exploited in the wild (KEV) — prioritize patching"
+
+// IsKnownExploited reports whether an AdvisoryRef was flagged as actively
+// exploited (KEV) by the matcher.
+func IsKnownExploited(ref contracts.AdvisoryRef) bool {
+	return strings.Contains(ref.Rationale, "(KEV)")
 }
 
 // ListMatcher matches a dependency inventory against a pinned advisory list.
@@ -43,10 +58,18 @@ func (m *ListMatcher) Match(_ context.Context, inv contracts.DependencyInventory
 			if !strings.EqualFold(a.Ecosystem, dep.Ecosystem) || !strings.EqualFold(a.Package, dep.Name) {
 				continue
 			}
+			app := applicability(dep.Version, a.FixedIn)
+			rationale := ""
+			// Only an *applicable* known-exploited advisory earns the KEV flag —
+			// a not-affected version is not an active threat to this component.
+			if a.KnownExploited && app == "affected" {
+				rationale = kevRationale
+			}
 			out = append(out, contracts.AdvisoryRef{
 				AdvisoryID:    a.ID,
 				Component:     dep.Name + "@" + dep.Version,
-				Applicability: applicability(dep.Version, a.FixedIn),
+				Applicability: app,
+				Rationale:     rationale,
 				Source:        m.snapshot,
 				Trust:         contracts.TrustAsserted,
 			})
@@ -116,6 +139,6 @@ func parseVer(v string) ([3]int, bool) {
 func ExampleAdvisories() []Advisory {
 	return []Advisory{
 		{ID: "EXAMPLE-0001", Ecosystem: "npm", Package: "left-pad", FixedIn: "1.3.0", CVSS: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"},
-		{ID: "EXAMPLE-0002", Ecosystem: "go", Package: "example.com/vuln", FixedIn: "2.0.0"},
+		{ID: "EXAMPLE-0002", Ecosystem: "go", Package: "example.com/vuln", FixedIn: "2.0.0", KnownExploited: true},
 	}
 }

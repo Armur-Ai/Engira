@@ -58,3 +58,38 @@ func TestEngineEnrichWithListMatcher(t *testing.T) {
 		t.Fatalf("enrich via list matcher wrong: %+v", res)
 	}
 }
+
+func TestMatch_FlagsKnownExploitedWhenAffected(t *testing.T) {
+	m := NewListMatcher("snap-kev", []Advisory{
+		{ID: "KEV-1", Ecosystem: "go", Package: "example.com/vuln", FixedIn: "2.0.0", KnownExploited: true},
+	})
+	inv := contracts.DependencyInventory{Components: []contracts.Dependency{
+		{Name: "example.com/vuln", Version: "1.0.0", Ecosystem: "go"}, // affected
+	}}
+	refs, err := m.Match(context.Background(), inv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(refs) != 1 || refs[0].Applicability != "affected" {
+		t.Fatalf("expected one affected ref, got %+v", refs)
+	}
+	if !IsKnownExploited(refs[0]) {
+		t.Errorf("affected known-exploited advisory should be flagged KEV: %q", refs[0].Rationale)
+	}
+}
+
+func TestMatch_NoKEVFlagWhenNotAffected(t *testing.T) {
+	m := NewListMatcher("snap-kev", []Advisory{
+		{ID: "KEV-1", Ecosystem: "go", Package: "example.com/vuln", FixedIn: "2.0.0", KnownExploited: true},
+	})
+	inv := contracts.DependencyInventory{Components: []contracts.Dependency{
+		{Name: "example.com/vuln", Version: "2.1.0", Ecosystem: "go"}, // patched
+	}}
+	refs, _ := m.Match(context.Background(), inv)
+	if len(refs) != 1 || refs[0].Applicability != "not_affected" {
+		t.Fatalf("expected one not_affected ref, got %+v", refs)
+	}
+	if IsKnownExploited(refs[0]) {
+		t.Error("a not-affected version must not be flagged as actively exploited")
+	}
+}
