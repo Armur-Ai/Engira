@@ -88,6 +88,10 @@ func runTriage(args []string) {
 		fmt.Fprintf(os.Stderr, "decode snapshot: %v\n", err)
 		os.Exit(1)
 	}
+	if err := snap.Validate(); err != nil {
+		fmt.Fprintf(os.Stderr, "triage: %v\n", err)
+		os.Exit(1)
+	}
 	summary := intel.TriageSnapshot(snap)
 
 	if *report {
@@ -128,6 +132,9 @@ func loadSnapshot(path string) (contracts.AssessmentSnapshot, error) {
 	}
 	if err := env.Decode(&snap); err != nil {
 		return snap, fmt.Errorf("decode snapshot %s: %w", path, err)
+	}
+	if err := snap.Validate(); err != nil {
+		return snap, fmt.Errorf("%s: %w", path, err)
 	}
 	return snap, nil
 }
