@@ -74,6 +74,32 @@ go install github.com/Armur-Ai/Engira/cmd/engira@latest
 
 Module path: `github.com/Armur-Ai/Engira`.
 
+## Commands
+
+Each command reads from stdin (or file args) and emits a versioned envelope by
+default, or a Markdown report with `--report`. Incompatible-schema or malformed
+inputs are rejected with a precise reason, never mis-processed.
+
+```bash
+# Enrich a dependency inventory against the advisory set (KEV-flagged, ordered)
+engira enrich --report < inventory.json
+
+# Triage a Pentest-Swarm AssessmentSnapshot: proven vs. modeled, paths, priority
+engira triage --report < snapshot.json
+
+# Diff two snapshots: what's new / fixed / persisting, and what went modeled→proven
+engira diff --report baseline.json head.json
+
+# CVSS v3.1 base score + qualitative rating (None/Low/Medium/High/Critical)
+engira score 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H'
+```
+
+- **enrich** flags **known-exploited (KEV)** advisories and orders the report by
+  urgency (actively-exploited → affected → unknown → not-affected).
+- **diff** treats a transition that went from *modeled* to *proven* as a
+  critical regression even when the edge already existed — the open→closed
+  lifecycle view over time.
+
 ## Status & roadmap
 
 Fresh scaffold. See [ROADMAP.md](./ROADMAP.md).
