@@ -22,12 +22,14 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: engira enrich < inventory.json   |   engira score <cvss-vector>   |   engira version")
+		fmt.Fprintln(os.Stderr, "usage: engira enrich < inventory.json   |   engira triage < snapshot.json   |   engira score <cvss-vector>   |   engira version")
 		os.Exit(2)
 	}
 	switch os.Args[1] {
 	case "enrich":
 		runEnrich(os.Args[2:])
+	case "triage":
+		runTriage(os.Args[2:])
 	case "score":
 		runScore(os.Args[2:])
 	case "version":
@@ -51,6 +53,57 @@ func runScore(args []string) {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(s)
+}
+
+// runTriage consumes a Pentest Swarm AssessmentSnapshot envelope (JSON on
+// stdin) and emits Engira's prioritized triage — JSON by default, or a Markdown
+// report with --report.
+func runTriage(args []string) {
+	fs := flag.NewFlagSet("triage", flag.ExitOnError)
+	report := fs.Bool("report", false, "render a Markdown report instead of the JSON envelope")
+	_ = fs.Parse(args)
+
+	raw, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "read stdin: %v\n", err)
+		os.Exit(1)
+	}
+	var env contracts.Envelope
+	if err := json.Unmarshal(raw, &env); err != nil {
+		fmt.Fprintf(os.Stderr, "parse envelope: %v\n", err)
+		os.Exit(1)
+	}
+	if _, err := contracts.CheckEnvelope(env); err != nil {
+		fmt.Fprintf(os.Stderr, "triage: incompatible envelope: %v\n", err)
+		os.Exit(1)
+	}
+	if env.Kind != "AssessmentSnapshot" {
+		fmt.Fprintf(os.Stderr, "triage: expected an AssessmentSnapshot envelope, got %q\n", env.Kind)
+		os.Exit(1)
+	}
+	var snap contracts.AssessmentSnapshot
+	if err := env.Decode(&snap); err != nil {
+		fmt.Fprintf(os.Stderr, "decode snapshot: %v\n", err)
+		os.Exit(1)
+	}
+	summary := intel.TriageSnapshot(snap)
+
+	if *report {
+		fmt.Print(intel.RenderTriageMarkdown(summary))
+		return
+	}
+	out, err := contracts.NewEnvelope(
+		contracts.NSEngira,
+		contracts.Producer{Product: "engira", Version: "scaffold"},
+		"TriageSummary", summary,
+	)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "envelope: %v\n", err)
+		os.Exit(1)
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(out)
 }
 
 func runEnrich(args []string) {
