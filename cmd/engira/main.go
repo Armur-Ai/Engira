@@ -52,9 +52,15 @@ func runScore(args []string) {
 		fmt.Fprintf(os.Stderr, "score: %v\n", err)
 		os.Exit(1)
 	}
+	// Carry the qualitative rating (None/Low/Medium/High/Critical) alongside the
+	// numeric base score — the label reviewers actually triage by.
+	out := struct {
+		contracts.Score
+		Rating string `json:"rating"`
+	}{Score: s, Rating: intel.CVSSRating(s.Value)}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	_ = enc.Encode(s)
+	_ = enc.Encode(out)
 }
 
 // runTriage consumes a Pentest Swarm AssessmentSnapshot envelope (JSON on

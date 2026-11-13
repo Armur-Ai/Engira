@@ -98,3 +98,26 @@ func pick(m map[string]string, key string, table map[string]float64) float64 {
 	}
 	return -1
 }
+
+// CVSSRating maps a CVSS v3.x base score to its qualitative severity rating,
+// per the CVSS v3.1 specification's severity-rating scale:
+//
+//	0.0        None
+//	0.1 – 3.9  Low
+//	4.0 – 6.9  Medium
+//	7.0 – 8.9  High
+//	9.0 – 10.0 Critical
+func CVSSRating(score float64) string {
+	switch {
+	case score <= 0:
+		return "None"
+	case score < 4.0:
+		return "Low"
+	case score < 7.0:
+		return "Medium"
+	case score < 9.0:
+		return "High"
+	default:
+		return "Critical"
+	}
+}

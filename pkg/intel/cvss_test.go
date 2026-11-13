@@ -35,3 +35,25 @@ func TestCVSSv31RejectsBadVector(t *testing.T) {
 		}
 	}
 }
+
+func TestCVSSRating(t *testing.T) {
+	cases := []struct {
+		score float64
+		want  string
+	}{
+		{0.0, "None"},
+		{0.1, "Low"},
+		{3.9, "Low"},
+		{4.0, "Medium"},
+		{6.9, "Medium"},
+		{7.0, "High"},
+		{8.9, "High"},
+		{9.0, "Critical"},
+		{10.0, "Critical"},
+	}
+	for _, c := range cases {
+		if got := CVSSRating(c.score); got != c.want {
+			t.Errorf("CVSSRating(%.1f) = %q, want %q", c.score, got, c.want)
+		}
+	}
+}
