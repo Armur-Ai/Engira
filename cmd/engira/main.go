@@ -22,7 +22,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: engira enrich < inventory.json   |   engira triage < snapshot.json   |   engira score <cvss-vector>   |   engira version")
+		fmt.Fprintln(os.Stderr, "usage: engira enrich < inventory.json   |   engira triage < snapshot.json   |   engira diff <base.json> <head.json>   |   engira score <cvss-vector>   |   engira version")
 		os.Exit(2)
 	}
 	switch os.Args[1] {
@@ -30,6 +30,8 @@ func main() {
 		runEnrich(os.Args[2:])
 	case "triage":
 		runTriage(os.Args[2:])
+	case "diff":
+		runDiff(os.Args[2:])
 	case "score":
 		runScore(os.Args[2:])
 	case "version":
@@ -96,6 +98,72 @@ func runTriage(args []string) {
 		contracts.NSEngira,
 		contracts.Producer{Product: "engira", Version: "scaffold"},
 		"TriageSummary", summary,
+	)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "envelope: %v\n", err)
+		os.Exit(1)
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(out)
+}
+
+// loadSnapshot reads an AssessmentSnapshot envelope from a file and returns the
+// decoded snapshot, rejecting an envelope whose schema major Engira can't read.
+func loadSnapshot(path string) (contracts.AssessmentSnapshot, error) {
+	var snap contracts.AssessmentSnapshot
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return snap, fmt.Errorf("read %s: %w", path, err)
+	}
+	var env contracts.Envelope
+	if err := json.Unmarshal(raw, &env); err != nil {
+		return snap, fmt.Errorf("parse envelope %s: %w", path, err)
+	}
+	if _, err := contracts.CheckEnvelope(env); err != nil {
+		return snap, fmt.Errorf("incompatible envelope %s: %w", path, err)
+	}
+	if env.Kind != "AssessmentSnapshot" {
+		return snap, fmt.Errorf("%s: expected an AssessmentSnapshot envelope, got %q", path, env.Kind)
+	}
+	if err := env.Decode(&snap); err != nil {
+		return snap, fmt.Errorf("decode snapshot %s: %w", path, err)
+	}
+	return snap, nil
+}
+
+// runDiff compares a baseline AssessmentSnapshot against a later one and reports
+// how the posture moved — new/fixed/persisting transitions and (the key signal)
+// which went from modeled to proven. JSON envelope by default, or Markdown with
+// --report.
+func runDiff(args []string) {
+	fs := flag.NewFlagSet("diff", flag.ExitOnError)
+	report := fs.Bool("report", false, "render a Markdown report instead of the JSON envelope")
+	_ = fs.Parse(args)
+	if fs.NArg() != 2 {
+		fmt.Fprintln(os.Stderr, "usage: engira diff [--report] <baseline-snapshot.json> <head-snapshot.json>")
+		os.Exit(2)
+	}
+	base, err := loadSnapshot(fs.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "diff: %v\n", err)
+		os.Exit(1)
+	}
+	head, err := loadSnapshot(fs.Arg(1))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "diff: %v\n", err)
+		os.Exit(1)
+	}
+	d := intel.DiffSnapshots(base, head)
+
+	if *report {
+		fmt.Print(intel.RenderDiffMarkdown(d))
+		return
+	}
+	out, err := contracts.NewEnvelope(
+		contracts.NSEngira,
+		contracts.Producer{Product: "engira", Version: "scaffold"},
+		"SnapshotDiff", d,
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "envelope: %v\n", err)
